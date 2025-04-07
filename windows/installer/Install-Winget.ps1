@@ -61,21 +61,19 @@ $WingetFiles.others | ForEach-Object {
 
 # 检测文件
 :CheckFiles while ($true) {
-    $Temp = $PrepareFiles.Keys | ForEach-Object {
+    $PrepareFiles.Keys | ForEach-Object {
         if (Test-Path $PrepareFiles[$_]) {
             Write-Host "$($PrepareFiles[$_]): " -NoNewline
             Write-Host "已找到" -ForegroundColor Green
             $Files[$_] = Get-Item $PrepareFiles[$_] | Select-Object -First 1
-            $true
         }
         else {
             Write-Host "$($PrepareFiles[$_]): " -NoNewline
             Write-Host "未找到" -ForegroundColor Red
-            $false
         }
-    } | Where-Object { $_ }
+    }
     # 文件缺失
-    if ($Temp.Count -ne $PrepareFiles.Count) {
+    if ($Files.Count -ne $PrepareFiles.Count) {
         $Files.Clear()
         Write-Host
         Write-Host "文件缺失，请重新运行脚本或手动准备文件；"
