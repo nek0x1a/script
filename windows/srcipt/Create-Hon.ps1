@@ -42,14 +42,15 @@ Write-Host $Target -ForegroundColor Cyan
 # 查找文件并压缩
 Get-ChildItem $Source -Directory | ForEach-Object {
     $PackageFullName = $_.Name + ".zip"
-    $PackageFiles = Get-ChildItem $_ -Recurse -File -Include $IncludeFiles
+    $PackageFiles = Get-ChildItem -LiteralPath $_ -Recurse -File -Include $IncludeFiles
     Write-Host "正在创建: " -NoNewline
     $PackagePath = Join-Path $Target $PackageFullName
     Write-Host $PackageFullName -ForegroundColor Green -NoNewline
     Write-Host "..."
+    # Write-Host "7z a -mx0 $PackagePath $PackageFiles"
     7z a -mx0 $PackagePath $PackageFiles
     if ($Delete) {
-        Remove-Item $_ -Recurse -Force
+        Remove-Item -LiteralPath $_ -Recurse -Force
     }
 }
 
