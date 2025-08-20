@@ -11,7 +11,8 @@ $Host.UI.RawUI.WindowTitle = "Runtime 安装"
 
 # 文件信息
 $PrepareFiles = @{
-    "WingetApps"    = "runtime.json";
+    "WingetRuntime" = "wingetAppList\runtime.json";
+    "WingetApps"    = "wingetAppList\baseApp.json";
     "DirectXRepair" = "DirectX_Repair_*.zip";
 }
 $Files = @{}
@@ -48,7 +49,7 @@ $Files = @{}
 Enable-WindowsOptionalFeature -Online -FeatureName "NetFX3"  
 
 # Winget 安装运行库
-winget import -i $Files['WingetApps'] --accept-package-agreements --accept-source-agreements --disable-interactivity
+winget import -i $Files['WingetRuntime'] --accept-package-agreements --accept-source-agreements --disable-interactivity
 
 # DirectX
 Expand-Archive -Path $Files['DirectXRepair'] -DestinationPath $Files['DirectXRepair'].BaseName
@@ -57,5 +58,7 @@ $EnterArgs = "/passive"
 if (Test-Path $EntryPoint -PathType Leaf) {
     & $EntryPoint $EnterArgs
 }
+
+winget import -i $Files['WingetApps'] --accept-package-agreements --accept-source-agreements --disable-interactivity
 
 Write-Host "Runtime 安装完成"

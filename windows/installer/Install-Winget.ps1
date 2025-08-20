@@ -9,7 +9,7 @@ if ( -not $CurrentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Ad
 # 初始化
 $Host.UI.RawUI.WindowTitle = "Winget 安装"
 # 整理路径
-$MoudleDir = Join-Path (Get-Item $PSCommandPath).Directory "../moudle" -Resolve
+$MoudleDir = Join-Path (Get-Item $PSCommandPath).Directory "moudle" -Resolve
 
 # 文件列表
 $WingetFiles = @{
@@ -24,8 +24,8 @@ $WingetFiles = @{
             url  = 'https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx'
         },
         @{
-            name = 'microsoft.ui.xaml.2.7.0.nupkg'
-            url  = 'https://www.nuget.org/api/v2/package/Microsoft.UI.Xaml/2.7.0'
+            name = 'microsoft.ui.xaml.2.8.7.nupkg'
+            url  = 'https://www.nuget.org/api/v2/package/Microsoft.UI.Xaml/2.8.7'
         }
     )
 }

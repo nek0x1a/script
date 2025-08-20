@@ -20,19 +20,13 @@
           "PackageIdentifier": "PixPin.PixPin"
         },
         {
-          "PackageIdentifier": "ndd.Notepad--"
+          "PackageIdentifier": "zufuliu.notepad4.AVX2"
         },
         {
           "PackageIdentifier": "BluePointLilac.ContextMenuManager"
         },
         {
           "PackageIdentifier": "Flow-Launcher.Flow-Launcher"
-        },
-        {
-          "PackageIdentifier": "jeffvli.Feishin"
-        },
-        {
-          "PackageIdentifier": "IanWalton.JellyfinMPVShim"
         }
       ],
       "SourceDetails": {

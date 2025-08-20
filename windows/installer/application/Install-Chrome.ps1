@@ -13,7 +13,7 @@ Write-Host "目标路径: " -NoNewline
 Write-Host $Path -ForegroundColor Cyan
 
 # 整理路径
-$MoudleDir = Join-Path (Get-Item $PSCommandPath).Directory "../moudle" -Resolve
+$MoudleDir = Join-Path (Get-Item $PSCommandPath).Directory "moudle" -Resolve
 
 # 文件列表
 $ChromeFiles = @(
