@@ -59,6 +59,9 @@
           "PackageIdentifier": "Microsoft.DotNet.Runtime.9"
         },
         {
+          "PackageIdentifier": "Microsoft.DotNet.Runtime.10"
+        },
+        {
           "PackageIdentifier": "Microsoft.DotNet.DesktopRuntime.3_1"
         },
         {
@@ -77,6 +80,9 @@
           "PackageIdentifier": "Microsoft.DotNet.DesktopRuntime.9"
         },
         {
+          "PackageIdentifier": "Microsoft.DotNet.DesktopRuntime.10"
+        },
+        {
           "PackageIdentifier": "Microsoft.DotNet.AspNetCore.3_1"
         },
         {
@@ -93,6 +99,9 @@
         },
         {
           "PackageIdentifier": "Microsoft.DotNet.AspNetCore.9"
+        },
+        {
+          "PackageIdentifier": "Microsoft.DotNet.AspNetCore.10"
         },
         {
           "PackageIdentifier": "Microsoft.XNARedist"
