@@ -44,23 +44,23 @@ process {
             return
         }
 
-        $FilesToPack = Get-ChildItem -LiteralPath $CurrentDir.FullName -Recurse -File -Include $IncludeFiles
-        if ($null -eq $FilesToPack) {
+        $FilesToPack = Get-ChildItem -LiteralPath $CurrentDir -Recurse -File -Include $IncludeFiles
+        if (-not $FilesToPack) {
             Write-Host "  未发现图片: $($CurrentDir.Name)" -ForegroundColor Yellow
             $Count['skip'] += 1
             return
         }
 
-        $ZArgs = @("a", "-tzip", "-mx0", "`"$PackagePath`"") + $FilesToPack.FullName.ForEach({ "`"$_`"" })
-        $Result = Start-Process 7z -ArgumentList $ZArgs  -Wait -NoNewWindow -PassThru
+        & 7z a -tzip -mx0 "$PackagePath" $FilesToPack | Out-Null
+        $ResultCode = $LASTEXITCODE
 
-        if ($Result.ExitCode -ne 0) {
-            Write-Host "  7z 异常退出，代码：$($process.ExitCode)" -ForegroundColor Red
+        if ($ResultCode -ne 0) {
+            Write-Host "  7z 异常退出，代码：$ResultCode" -ForegroundColor Red
             $Count['failure'] += 1
             return
         }
         if ($Delete) {
-            Remove-Item -LiteralPath $CurrentDir.FullName -Recurse -Force
+            Remove-Item -LiteralPath $CurrentDir -Recurse -Force
         }
         $Count['seccess'] += 1
     }

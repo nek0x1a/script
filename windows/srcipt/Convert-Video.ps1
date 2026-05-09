@@ -20,7 +20,6 @@ param(
     [ValidateSet('low', 'medium', 'high', IgnoreCase = $true)]
     [String]$Quality = "low",
 
-    # 成功后删除源文件
     [switch]$DeleteSource
 )
 
@@ -118,18 +117,18 @@ process {
 
         $FFmpegArgs = $VideoDecoderArgs + @(
             '-loglevel', 'quiet', '-hide_banner',
-            '-i', "`"$($CurrentFile.FullName)`"",
+            '-i', "`"$CurrentFile`"",
             '-c:v', $VideoEncoder
         ) + $QualityArgs + $AudioArgs + @("`"$OutputPath`"")
         $Result = Start-Process ffmpeg -ArgumentList $FFmpegArgs -Wait -NoNewWindow -PassThru
 
         if ($Result.ExitCode -ne 0) {
-            Write-Host "  FFmpeg 异常退出，代码：$($process.ExitCode)" -ForegroundColor Red
+            Write-Host "  FFmpeg 异常退出，代码：$($Result.ExitCode)" -ForegroundColor Red
             $Count['failure'] += 1
             return
         }
         elseif ($DeleteSource) {
-            Remove-Item -Path $CurrentFile.FullName -Force
+            Remove-Item -Path $CurrentFile -Force
         }
         $Count['seccess'] += 1
     }
