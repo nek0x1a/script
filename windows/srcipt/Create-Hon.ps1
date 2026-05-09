@@ -1,56 +1,74 @@
+[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+    [ValidateScript({ Test-Path $_ -PathType Container })]
     [String]$Source,
+
     [Parameter(Mandatory = $true)]
+    [ValidateScript({ Test-Path $_ -PathType Container })]
     [String]$Target,
+
     [switch]$Delete
 )
 
-# 自定义变量
-$IncludeFiles = '*.bmp', '*.jpg', '*.jpeg', '*.png', '*.gif', '*.webp', '*.avif', '*.apng'
-
-# 处理路径
-if (!(Test-Path -Path $Source -PathType Container)) {
-    Write-Host "源路径不是文件夹: " -NoNewline
-    Write-Host $Source -ForegroundColor Yellow
-    exit 126
-}
-if (!(Test-Path -Path $Target -PathType Container)) {
-    Write-Host "目标路径不是文件夹: " -NoNewline
-    Write-Host $Target -ForegroundColor Yellow
-    exit 126
-}
-
-$Target = Join-Path $Target -ChildPath (Get-Date -Format "yyyyMMdd")
-
-if (!(Test-Path $Target)) {
-    New-Item $Target -ItemType Directory
-}
-if (!(Test-Path -Path $Target -PathType Container)) {
-    Write-Host "目标路径不是文件夹: " -NoNewline
-    Write-Host $Target -ForegroundColor Yellow
-    exit 126
-}
-
-$Source = Convert-Path $Source
-$Target = Convert-Path $Target
-Write-Host "源路径: " -NoNewline
-Write-Host $Source -ForegroundColor Cyan
-Write-Host "目标路径: " -NoNewline
-Write-Host $Target -ForegroundColor Cyan
-
-# 查找文件并压缩
-Get-ChildItem $Source -Directory | ForEach-Object {
-    $PackageFullName = $_.Name + ".zip"
-    $PackageFiles = Get-ChildItem -LiteralPath $_ -Recurse -File -Include $IncludeFiles
-    Write-Host "正在创建: " -NoNewline
-    $PackagePath = Join-Path $Target $PackageFullName
-    Write-Host $PackageFullName -ForegroundColor Green -NoNewline
-    Write-Host "..."
-    # Write-Host "7z a -mx0 $PackagePath $PackageFiles"
-    7z a -mx0 $PackagePath $PackageFiles
-    if ($Delete) {
-        Remove-Item -LiteralPath $_ -Recurse -Force
+process {
+    if (-not (Get-Command 7z -ErrorAction SilentlyContinue)) {
+        Write-Error "未找到 7z"
+        return
     }
-}
 
+    $TargetPath = Join-Path $Target (Get-Date -Format "yyyyMMdd")
+    if (-not (Test-Path $TargetPath)) {
+        New-Item -Path $TargetPath -ItemType Directory -Force | Out-Null
+    }
+
+    Write-Host "漫画批量打包" -ForegroundColor Cyan
+    Write-Host "输入目录: $Source"
+    Write-Host "输出目录: $TargetPath"
+    Write-Host "删除源文件: $Delete"
+
+    $IncludeFiles = @('*.bmp', '*.jpg', '*.jpeg', '*.png', '*.gif', '*.webp')
+    $PaddingDirs = @(Get-ChildItem $Source -Directory)
+    $Count = @{'total' = $PaddingDirs.Count; 'seccess' = 0; 'skip' = 0; 'failure' = 0 }
+
+    $PaddingDirs | ForEach-Object {
+        $CurrentDir = $_
+        $PackageName = "$($CurrentDir.Name).zip"
+        $PackagePath = Join-Path $TargetPath $PackageName
+        
+        $currentIndex = $Count['seccess'] + $Count['skip'] + $Count['failure'] + 1
+        Write-Host "[$currentIndex/$($Count['total'])] $($CurrentDir.Name)"
+        if (Test-Path -LiteralPath "$PackagePath") {
+            Write-Host "  文件已存在：$PackagePath" -ForegroundColor Yellow
+            $Count['skip'] += 1
+            return
+        }
+
+        $FilesToPack = Get-ChildItem -LiteralPath $CurrentDir.FullName -Recurse -File -Include $IncludeFiles
+        if ($null -eq $FilesToPack) {
+            Write-Host "  未发现图片: $($CurrentDir.Name)" -ForegroundColor Yellow
+            $Count['skip'] += 1
+            return
+        }
+
+        $ZArgs = @("a", "-tzip", "-mx0", "`"$PackagePath`"") + $FilesToPack.FullName.ForEach({ "`"$_`"" })
+        $Result = Start-Process 7z -ArgumentList $ZArgs  -Wait -NoNewWindow -PassThru
+
+        if ($Result.ExitCode -ne 0) {
+            Write-Host "  7z 异常退出，代码：$($process.ExitCode)" -ForegroundColor Red
+            $Count['failure'] += 1
+            return
+        }
+        if ($Delete) {
+            Remove-Item -LiteralPath $CurrentDir.FullName -Recurse -Force
+        }
+        $Count['seccess'] += 1
+    }
+    Write-Host "成功 " -NoNewline
+    Write-Host $Count['seccess'] -ForegroundColor Green -NoNewline
+    Write-Host " | 跳过 " -NoNewline
+    Write-Host $Count['skip'] -ForegroundColor Yellow -NoNewline
+    Write-Host " | 失败 " -NoNewline
+    Write-Host $Count['failure'] -ForegroundColor Red -NoNewline
+    Write-Host " / 总计 $($Count['total'])"
+}
