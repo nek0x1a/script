@@ -1,34 +1,57 @@
+[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+    [ValidateScript({ Test-Path $_ -PathType Container })]
     [String]$Path,
+
+    [Int32]$MaxDepth = 1,
+
     [switch]$WithParentName
 )
 
-if (!(Test-Path $Path -PathType Container)) {
-    Write-Error "目标不是文件夹: $Path"
-    exit 126
-}
-
-$Path = Convert-Path $Path
-Write-Host "目标路径: " -NoNewline
-Write-Host $Path -ForegroundColor Cyan
-
-# 找到所有的文件
-$Files = @()
-Get-ChildItem $Path -Directory | ForEach-Object {
-    $Files += Get-ChildItem $_ -File -Recurse -Force
-}
-if ($WithParentName) {
-    $NewFiles = @()
-    $Files | ForEach-Object {
-        $NewName = $_.Directory.Name + "-" + $_.Name
-        $NewFile = Rename-Item $_ $NewName -PassThru
-        $NewFiles += $NewFile
+process {
+    $excessiveFiles = Get-ChildItem -Path $Path -File -Recurse -Force | 
+    Where-Object {
+        $RelativePath = $_.FullName.Substring($Path.Length).TrimStart([System.IO.Path]::DirectorySeparatorChar)
+        $CurrentDepth = ($RelativePath.Split([System.IO.Path]::DirectorySeparatorChar) | Where-Object { $_ }).Count - 1
+        $CurrentDepth -gt $MaxDepth
     }
-    $Files = $NewFiles
-}
-Move-Item $Files $Path
+    if ($excessiveFiles) {
+        Write-Host "超过最大深度限制: $MaxDepth" -ForegroundColor Red
+        return
+    }
+    $Files = Get-ChildItem -Path $Path -Recurse -File -Force | Where-Object {
+        $_.DirectoryName -ne $Path
+    }
+    $Count = @{'total' = $Files.Count; 'seccess' = 0; 'skip' = 0; 'failure' = 0 }
+    $Files | ForEach-Object {
+        $CurrentFile = $_
+        if ($WithParentName) {
+            $targetPath = Join-Path $Path "$($CurrentFile.Directory.Name)-$($CurrentFile.Name)"
+        }
+        else {
+            $targetPath = Join-Path $Path "$($CurrentFile.Name)"
+        }
+        if (Test-Path $targetPath) {
+            Write-Host "已存在同名文件: $($targetPath.Name)"
+            $Count['skip'] += 1
+            continue
+        }
 
-Write-Host "共移动 " -NoNewline
-Write-Host $Files.Count -ForegroundColor Green -NoNewline
-Write-Host " 个文件夹"
+        try {
+            Move-Item -Path $CurrentFile -Destination $targetPath -Force
+            $Count['seccess'] += 1
+        }
+        catch {
+            Write-Error "无法移动文件 ${CurrentFile}: $($_.Exception.Message)"
+            $Count['failure'] += 1
+        }
+    }
+    Write-Host "成功 " -NoNewline
+    Write-Host $Count['seccess'] -ForegroundColor Green -NoNewline
+    Write-Host " | 跳过 " -NoNewline
+    Write-Host $Count['skip'] -ForegroundColor Yellow -NoNewline
+    Write-Host " | 失败 " -NoNewline
+    Write-Host $Count['failure'] -ForegroundColor Red -NoNewline
+    Write-Host " / 总计 $($Count['total'])"
+}
