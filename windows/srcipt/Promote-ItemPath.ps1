@@ -1,44 +1,51 @@
+[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+    [ValidateScript({ Test-Path $_ -PathType Container })]
     [String]$Path,
+
+    [switch]$WithParentName,
+
     [switch]$SubDirectories
 )
 
-if (!(Test-Path $Path -PathType Container)) {
-    Write-Host "目标路径不是文件夹: " -NoNewline
-    Write-Host $Path -ForegroundColor Yellow
-    exit 126
-}
-$Path = Convert-Path $Path
-Write-Host "目标路径: " -NoNewline
-Write-Host $Path -ForegroundColor Cyan
+process {
+    $Targets = if ($SubDirectories) {
+        Get-ChildItem -Path $Path -Directory
+    }
+    else {
+        Get-Item -Path $Path
+    }
+    $Targets | ForEach-Object {
+        $Folder = $_
+        Write-Host "处理 $($Folder)"
+        Get-ChildItem -Path $Folder | ForEach-Object {
+            $Item = $_
+            $NewName = if ($WithParentName) {
+                "$($Folder.Name)-$($Item.Name)"
+            }
+            else {
+                $Item.Name
+            }
+            $Destination = Join-Path -Path $($Folder.Parent) -ChildPath $NewName
 
-function Promote {
-    param (
-        [Parameter(Mandatory = $true)]
-        [String]$Path
-    )
-    # 找到 Path 下的文件夹
-    Get-ChildItem $Path -Directory | ForEach-Object {
-        # 文件夹下的所有内容移动到 Path
-        $Files = Get-ChildItem $_ -Force
-        Move-Item $Files $Path
-        # 如果这个文件夹为空则删除
-        if ($null -eq (Get-ChildItem $_ -File -Force -Recurse)) {
-            Remove-Item $_ -Recurse
+            if (Test-Path $Destination) {
+                Write-Warning "  文件/文件夹已存在: $NewName" -ForegroundColor Yellow
+                return
+            }
+
+            try {
+                Move-Item -Path $Item -Destination $Destination -Force
+            }
+            catch {
+                Write-Host "  无法移动 $($Item): $($_.Exception.Message)" -ForegroundColor Red
+            }
+        }
+        if (-not (Get-ChildItem -Path $Folder -Force).Count) {
+            Remove-Item -Path $Folder -Force -ErrorAction Continue
+        }
+        else {
+            Write-Warning "  文件夹不为空: $Folder" -ForegroundColor Yellow
         }
     }
 }
-
-if ($SubDirectories) {
-    # 对子文件夹应用
-    Get-ChildItem $Path -Directory | ForEach-Object {
-        Promote $_
-    }
-}
-else {
-    # 对本文件夹应用
-    Promote $Path
-}
-
-Write-Host "操作完成"
