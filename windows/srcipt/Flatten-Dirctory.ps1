@@ -10,13 +10,13 @@ param(
 )
 
 process {
-    $excessiveFiles = Get-ChildItem -Path $Path -File -Recurse -Force | 
+    $ExcessiveFiles = Get-ChildItem -Path $Path -File -Recurse -Force | 
     Where-Object {
         $RelativePath = $_.FullName.Substring($Path.Length).TrimStart([System.IO.Path]::DirectorySeparatorChar)
         $CurrentDepth = ($RelativePath.Split([System.IO.Path]::DirectorySeparatorChar) | Where-Object { $_ }).Count - 1
         $CurrentDepth -gt $MaxDepth
     }
-    if ($excessiveFiles) {
+    if ($ExcessiveFiles) {
         Write-Host "超过最大深度限制: $MaxDepth" -ForegroundColor Red
         return
     }
@@ -27,19 +27,19 @@ process {
     $Files | ForEach-Object {
         $CurrentFile = $_
         if ($WithParentName) {
-            $targetPath = Join-Path $Path "$($CurrentFile.Directory.Name)-$($CurrentFile.Name)"
+            $TargetPath = Join-Path $Path "$($CurrentFile.Directory.Name)-$($CurrentFile.Name)"
         }
         else {
-            $targetPath = Join-Path $Path "$($CurrentFile.Name)"
+            $TargetPath = Join-Path $Path "$($CurrentFile.Name)"
         }
-        if (Test-Path $targetPath) {
-            Write-Host "已存在同名文件: $($targetPath.Name)"
+        if (Test-Path $TargetPath) {
+            Write-Host "已存在同名文件: $($TargetPath.Name)"
             $Count['skip'] += 1
             continue
         }
 
         try {
-            Move-Item -Path $CurrentFile -Destination $targetPath -Force
+            Move-Item -Path $CurrentFile -Destination $TargetPath -Force
             $Count['seccess'] += 1
         }
         catch {

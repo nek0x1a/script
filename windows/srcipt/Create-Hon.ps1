@@ -36,8 +36,8 @@ process {
         $PackageName = "$($CurrentDir.Name).zip"
         $PackagePath = Join-Path $TargetPath $PackageName
         
-        $currentIndex = $Count['seccess'] + $Count['skip'] + $Count['failure'] + 1
-        Write-Host "[$currentIndex/$($Count['total'])] $($CurrentDir.Name)"
+        $CurrentIndex = $Count['seccess'] + $Count['skip'] + $Count['failure'] + 1
+        Write-Host "[$CurrentIndex/$($Count['total'])] $($CurrentDir.Name)"
         if (Test-Path -LiteralPath "$PackagePath") {
             Write-Host "  文件已存在：$PackagePath" -ForegroundColor Yellow
             $Count['skip'] += 1

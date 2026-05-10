@@ -106,8 +106,8 @@ process {
         $CurrentFile = $_
         $OutputFileName = "Convert_$($CurrentFile.BaseName).mp4" # 统一输出为 mp4 容器
         $OutputPath = Join-Path $Target $OutputFileName
-        $currentIndex = $Count['seccess'] + $Count['skip'] + $Count['failure'] + 1
-        Write-Host "[$currentIndex/$($Count['total'])] $($CurrentFile.Name)"
+        $CurrentIndex = $Count['seccess'] + $Count['skip'] + $Count['failure'] + 1
+        Write-Host "[$CurrentIndex/$($Count['total'])] $($CurrentFile.Name)"
 
         if (Test-Path $OutputPath) {
             Write-Host "  文件已存在：$OutputPath" -ForegroundColor Yellow
