@@ -1,35 +1,28 @@
+[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-    [String[]]$Path
+    [ValidateScript({ Test-Path -Path $_ -PathType Container })]
+    [string]$Path,
+
+    [switch]$Recurse
 )
-
-if (!(Test-Path $Path -PathType Container)) {
-    Write-Error "目标不是文件夹: $Path"
-    exit 126
-}
-
-$Path = Convert-Path $Path
-Write-Host "目标路径: " -NoNewline
-Write-Host $Path -ForegroundColor Cyan
-
-$DeletedCount = 0
-$HasDeletedItem = $true
-# 删除一次空文件夹后再次检查，直到没有空文件夹。
-while ($HasDeletedItem) {
-    $HasDeletedItem = $false
-    Get-ChildItem $Path -Recurse -Directory | ForEach-Object {
-        if ((Test-Path $_) -and ((Get-ChildItem $_ -Force) -eq $null)) {
-            $HasDeletedItem = $true
-            Remove-Item $_ -Recurse
-            $DeletedCount += 1
+process {
+    $Count = 0
+    if ($Recurse) {
+        $Folders = Get-ChildItem -Path $Path -Directory -Recurse -Force
+    }
+    else {
+        $Folders = Get-ChildItem -Path $Path -Directory -Force
+    }
+    $Folders | Sort-Object FullName -Descending | ForEach-Object {
+        $CurrentFolder = $_
+        $FirstFile = Get-ChildItem -Path $CurrentFolder -Recurse -File -Force -ErrorAction Continue | Select-Object -First 1
+        if (-not $FirstFile) {
+            Remove-Item -Path $CurrentFolder -Recurse -Force -ErrorAction Continue
+            $Count += 1
         }
     }
-    if ($HasDeletedItem) {
-        Write-Debug "有删除项，重新搜索: $Path"
-
-    }
+    Write-Host "删除空文件夹 " -NoNewline
+    Write-Host $Count -NoNewline -ForegroundColor Green
+    Write-Host " 个"
 }
-
-Write-Host "共删除 " -NoNewline
-Write-Host $DeletedCount -ForegroundColor Green -NoNewline
-Write-Host " 个文件夹"
