@@ -29,7 +29,7 @@ global IsRunning := false ; 连击状态标记
         SavedObj := SettingGui.Submit() ; 获取控件内容并隐藏窗口
         ; 更新全局变量
         global SavedKey := SavedObj.InputKey = "" ? SavedKey : SavedObj.InputKey
-        global SavedInterval := SavedObj.InputTime < 10 ? 200 : SavedInterval
+        global SavedInterval := SavedObj.InputTime < 10 ? 10 : SavedObj.InputTime
         ; 提示
         ToolTip("✅ " SavedKey ": " SavedInterval)
         SetTimer(() => ToolTip(), -1000)
