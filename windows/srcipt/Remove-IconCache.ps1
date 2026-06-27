@@ -9,16 +9,16 @@ begin {
     $CurrentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     if (-not $CurrentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
         # 如果不是管理员角色则使用管理员身份重新运行脚本
-        $CruuentArgs = @("-NoExit", "-file", "`"${PSCommandPath}`"")
+        $CurrentArgs = @("-NoExit", "-file", "`"${PSCommandPath}`"")
         ${PSBoundParameters}.Keys | ForEach-Object {
             $Key = $_
             $Value = ${PSBoundParameters}[$Key]
-            $CruuentArgs += "-$Key"
+            $CurrentArgs += "-$Key"
             if (($Value -isnot [switch]) -and ($Value -isnot [bool])) {
-                $CruuentArgs += "$Value"
+                $CurrentArgs += "$Value"
             }
         }
-        Start-Process "pwsh.exe" -Verb RunAs -ArgumentList $CruuentArgs
+        Start-Process "pwsh" -Verb RunAs -ArgumentList $CurrentArgs
         $ShouldExecute = $false
     }
 }

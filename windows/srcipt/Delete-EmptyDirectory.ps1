@@ -6,6 +6,7 @@ param(
 
     [switch]$Recurse
 )
+
 process {
     $Count = 0
     if ($Recurse) {
