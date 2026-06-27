@@ -1,142 +1,102 @@
-[CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-    [ValidateScript({ Test-Path -Path $_ -PathType Container })]
-    [String]$Source,
+    [Parameter(Mandatory=$true)]
+    [string]$InputPath,
 
-    [Parameter(Mandatory = $true)]
-    [ValidateScript({ Test-Path -Path $_ -PathType Container })]
-    [String]$Target,
+    [ValidateRange(26,40)]
+    [int]$Quality = 30,
 
-    [ValidateSet('h264', 'hevc', 'av1', IgnoreCase = $true)]
-    [String]$VideoFormat = 'h264',
-
-    [ValidateSet('copy', 'remove', 'aac', IgnoreCase = $true)]
-    [String]$AudioFormat = 'copy',
-
-    [ValidateSet('cpu', 'nvidia', 'amd', 'intel', IgnoreCase = $true)]
-    [String]$Hardware = 'cpu',
-
-    [ValidateSet('low', 'medium', 'high', IgnoreCase = $true)]
-    [String]$Quality = "low",
-
-    [switch]$DeleteSource
+    [ValidateSet('copy','low','high','none')]
+    [string]$Audio = 'copy'
 )
 
-process {
-    if (-not (Get-Command FFmpeg -ErrorAction SilentlyContinue)) {
-        Write-Error "未找到 FFmpeg"
-        return
-    }
+# 常见视频格式列表
+$VideoExtensions = @('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.mpg', '.mpeg', '.ts', '.m2ts', '.3gp', '.3g2')
 
-    $VideoFormat = $VideoFormat.ToLower()
-    $AudioFormat = $AudioFormat.ToLower()
-    $Hardware = $Hardware.ToLower()
-    $VideoDecoder = @{
-        'cpu'    = $null
-        'nvidia' = "cuda"
-        'amd'    = "amf"
-        'intel'  = "qsv"
-    }[$Hardware]
-    if ($VideoDecoder) {
-        $VideoDecoderArgs = @('-hwaccel', $VideoDecoder)
-    }
-    else {
-        $VideoDecoderArgs = @()
-    }
-
-    $VideoEncoder = @{
-        'cpu'    = @{ 'h264' = 'libx264'; 'hevc' = 'libx265'; 'av1' = 'libsvtav1' }
-        'nvidia' = @{ 'h264' = 'h264_nvenc'; 'hevc' = 'hevc_nvenc'; 'av1' = 'av1_nvenc' }
-        'amd'    = @{ 'h264' = 'h264_amf'; 'hevc' = 'hevc_amf'; 'av1' = 'av1_amf' }
-        'intel'  = @{ 'h264' = 'h264_qsv'; 'hevc' = 'hevc_qsv'; 'av1' = 'av1_qsv' }
-    }[$Hardware][$VideoFormat]
-
-    $AudioArgs = switch ($AudioFormat) {
-        'copy' { @('-c:a', 'copy') }
-        'remove' { @('-an') }
-        'aac' { @('-c:a', 'aac', '-b:a', '128k') }
-    }
-
-    $QualityNum = @{
-        'cpu'    = @{
-            'h264' = @{ 'low' = 24; 'medium' = 24; 'high' = 24 }
-            'hevc' = @{ 'low' = 25; 'medium' = 25; 'high' = 25 }
-            'av1'  = @{ 'low' = 32; 'medium' = 32; 'high' = 32 }
-        }
-        'nvidia' = @{
-            'h264' = @{ 'low' = 30; 'medium' = 30; 'high' = 30 }
-            'hevc' = @{ 'low' = 30; 'medium' = 30; 'high' = 30 }
-            'av1'  = @{ 'low' = 34; 'medium' = 34; 'high' = 34 }
-        }
-        'amd'    = @{
-            'h264' = @{ 'low' = 24; 'medium' = 24; 'high' = 24 }
-            'hevc' = @{ 'low' = 28; 'medium' = 28; 'high' = 28 }
-            'av1'  = @{ 'low' = 24; 'medium' = 24; 'high' = 24 }
-        }
-        'intel'  = @{
-            'h264' = @{ 'low' = 24; 'medium' = 24; 'high' = 24 }
-            'hevc' = @{ 'low' = 24; 'medium' = 24; 'high' = 24 }
-            'av1'  = @{ 'low' = 24; 'medium' = 24; 'high' = 24 }
-        }
-    }[$Hardware][$VideoFormat][$Quality]
-    $QualityArgs = switch ($AudioFormat) {
-        'cpu' { @('-rcf', $QualityNum) }
-        'nvidia' { @('-cq', $QualityNum) }
-        'amd' { @('-qp_i', $QualityNum, '-qp_p', $QualityNum) }
-        'intel' { @('-global_quality', $QualityNum) }
-    }
-
-    Write-Host "视频批量转换" -ForegroundColor Cyan
-    Write-Host "输入目录: $Source"
-    Write-Host "输出目录: $Target"
-    Write-Host "视频格式: $VideoFormat"
-    Write-Host "视频解码: $VideoDecoder"
-    Write-Host "视频编码: $VideoEncoder"
-    Write-Host "视频质量: $QualityNum"
-    Write-Host "音频模式: $AudioFormat"
-    Write-Host "删除源文件: $DeleteSource"
-
-    $Extensions = @('*.mp4', '*.mkv', '*.avi', '*.mov', '*.flv', '*.wmv', '*.webm', '*.m4v')
-    $Files = @(Get-ChildItem -Path "$Source\*" -Include $Extensions -File)
-
-    $Count = @{'total' = $Files.Count; 'seccess' = 0; 'skip' = 0; 'failure' = 0 }
-
-    $Files | ForEach-Object {
-        $CurrentFile = $_
-        $OutputFileName = "Convert_$($CurrentFile.BaseName).mp4" # 统一输出为 mp4 容器
-        $OutputPath = Join-Path $Target $OutputFileName
-        $CurrentIndex = $Count['seccess'] + $Count['skip'] + $Count['failure'] + 1
-        Write-Host "[$CurrentIndex/$($Count['total'])] $($CurrentFile.Name)"
-
-        if (Test-Path $OutputPath) {
-            Write-Host "  文件已存在：$OutputPath" -ForegroundColor Yellow
-            $Count['skip'] += 1
-            return
-        }
-
-        $FFmpegArgs = $VideoDecoderArgs + @(
-            '-loglevel', 'quiet', '-hide_banner',
-            '-i', "`"$CurrentFile`"",
-            '-c:v', $VideoEncoder
-        ) + $QualityArgs + $AudioArgs + @("`"$OutputPath`"")
-        $Result = Start-Process ffmpeg -ArgumentList $FFmpegArgs -Wait -NoNewWindow -PassThru
-
-        if ($Result.ExitCode -ne 0) {
-            Write-Host "  FFmpeg 异常退出，代码：$($Result.ExitCode)" -ForegroundColor Red
-            $Count['failure'] += 1
-            return
-        }
-        elseif ($DeleteSource) {
-            Remove-Item -Path $CurrentFile -Force
-        }
-        $Count['seccess'] += 1
-    }
-    Write-Host "成功 " -NoNewline
-    Write-Host $Count['seccess'] -ForegroundColor Green -NoNewline
-    Write-Host " | 跳过 " -NoNewline
-    Write-Host $Count['skip'] -ForegroundColor Yellow -NoNewline
-    Write-Host " | 失败 " -NoNewline
-    Write-Host $Count['failure'] -ForegroundColor Red -NoNewline
-    Write-Host " / 总计 $($Count['total'])"
+# 处理音频参数
+$AudioParams = switch ($Audio) {
+    'copy' { '-c:a copy' }
+    'low'  { '-c:a aac -b:a 128k' }
+    'high' { '-c:a aac -b:a 320k' }
+    'none' { '-an' }
 }
+
+# 获取输入路径信息
+$InputItem = Get-Item -LiteralPath $InputPath
+
+if ($InputItem.PSIsContainer) {
+    # 如果是目录，获取所有视频文件
+    $GetParams = @{
+        LiteralPath = $InputItem
+        File = $true
+    }
+    $VideoFiles = Get-ChildItem @GetParams | Where-Object { $VideoExtensions -contains $_.Extension.ToLower() }
+    
+    if ($VideoFiles.Count -eq 0) {
+        Write-Host "在目录中未找到任何视频文件" -ForegroundColor Yellow
+        exit
+    }
+    
+    Write-Host "找到 $($VideoFiles.Count) 个视频文件"
+} else {
+    # 如果是单个文件，检查是否为视频格式
+    if ($VideoExtensions -notcontains $InputItem.Extension.ToLower()) {
+        Write-Host "指定的文件不是视频: $($InputItem.Extension)" -ForegroundColor Yellow
+        exit
+    }
+    $VideoFiles = @($InputItem)
+}
+
+# 统计变量
+$Total = $VideoFiles.Count
+$Success = 0
+$Failed = 0
+
+# 遍历并转换视频文件
+foreach ($InputFile in $VideoFiles) {
+    $OutputDir = $InputFile.DirectoryName
+    $BaseName = $InputFile.BaseName
+    $Extension = $InputFile.Extension
+    
+    # 构建输出文件名
+    $OutputFile = Join-Path $OutputDir "$BaseName`_hevc$Extension"
+    
+    # 输出文件已存在，自动跳过
+    if (Test-Path $OutputFile) {
+        Write-Host "跳过已存在文件: $OutputFile" -ForegroundColor Yellow
+        $Failed++
+        continue
+    }
+
+    # 构建 FFmpeg 命令
+    # ffmpeg -loglevel error -stats -hwaccel cuda -i "<input>" -c:v hevc_nvenc -cq 30  -c:a copy "<output>"
+    $FfmpegCmd = @(
+        'ffmpeg'
+        '-loglevel error'
+        '-stats'
+        '-hwaccel cuda'
+        '-i'
+        "`"$($InputFile.FullName)`""
+        '-c:v hevc_nvenc'
+        "-cq $Quality"
+        $AudioParams
+        "`"$OutputFile`""
+    ) -join ' '
+    
+    # 执行命令
+    Invoke-Expression $FfmpegCmd
+    
+    # 检查执行结果
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  转换完成: $OutputFile" -ForegroundColor Green
+        $Success++
+    } else {
+        Write-Host "  转换失败，错误码: $LASTEXITCODE" -ForegroundColor Red
+        $Failed++
+    }
+}
+
+# 输出汇总信息
+Write-Host "`n总计: $Total, 成功: " -NoNewLine
+Write-Host "$Success" -NoNewLine -ForegroundColor Green
+Write-Host ", 失败: " -NoNewLine
+Write-Host "$Failed" -NoNewLine -ForegroundColor Red
